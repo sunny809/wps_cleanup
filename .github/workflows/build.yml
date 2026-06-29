@@ -105,12 +105,15 @@ jobs:
           name: WPS-Cleanup-${{ github.sha }}
           path: dist
 
-      # 安装 Inno Setup + 编译安装包
+      # 安装 Inno Setup + 下载中文语言文件 + 编译安装包
       - name: Build installer
         run: |
           # 下载 Inno Setup 便携版
           Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile "is.exe"
           Start-Process -FilePath "is.exe" -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=C:\innosetup" -Wait
+          # 下载中文语言文件（便携版不含）
+          New-Item -ItemType Directory -Force -Path C:\innosetup\Languages
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Chinese.isl" -OutFile "C:\innosetup\Languages\Chinese.isl"
           & "C:\innosetup\ISCC.exe" scripts/setup.iss
 
       - name: Generate release notes

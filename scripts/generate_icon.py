@@ -88,12 +88,12 @@ def main():
     png_data = _create_png()
     with open(PNG_PATH, "wb") as f:
         f.write(png_data)
-    print(f"  ✓ PNG icon: {PNG_PATH} ({len(png_data)} bytes)")
+    print(f"  [OK] PNG icon: {PNG_PATH} ({len(png_data)} bytes)")
 
     ico_data = _png_to_ico(png_data)
     with open(ICO_PATH, "wb") as f:
         f.write(ico_data)
-    print(f"  ✓ ICO icon: {ICO_PATH} ({len(ico_data)} bytes)")
+    print(f"  [OK] ICO icon: {ICO_PATH} ({len(ico_data)} bytes)")
 
 
 if __name__ == "__main__":

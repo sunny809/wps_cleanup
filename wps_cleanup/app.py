@@ -12,7 +12,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Dict, List, Optional
 
-from .cleaner import clean_selected, CleanResult
+from .cleaner import clean_selected, CleanResult, WPS_BLOCKED_SENTINEL
 from .config import SafetyLevel, Category, CLEANUP_ITEMS
 from .scanner import scan_all, get_total_cleanable
 from .utils import check_wps_running, format_size
@@ -558,6 +558,20 @@ class WPSCleanupApp:
         self._show_progress(False)
         self._set_busy(False)
         self._clean_btn.config(state="normal", text="🧹  开始清理")
+
+        # 检查是否被 WPS 拦截
+        if (
+            len(results) == 1
+            and results[0].error == WPS_BLOCKED_SENTINEL
+        ):
+            messagebox.showwarning(
+                "WPS 正在运行",
+                "检测到 WPS 进程正在运行，请先关闭所有 WPS 程序后再清理。\n\n"
+                "关闭 WPS 后可以点击「重新扫描」再次检查。",
+            )
+            self._status_label.config(text="⚠️ 因 WPS 运行中跳过清理", fg=Colors.CAUTION)
+            self._perform_scan()
+            return
 
         # 显示详细报告弹窗
         self.root.after(0, lambda: ReportDialog(self.root, results, duration))

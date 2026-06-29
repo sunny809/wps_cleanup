@@ -2,12 +2,13 @@
 WPS 清理目录配置。
 
 根据用户提供的 WPS Office 各缓存/备份目录路径，按类别和安全等级归类。
-所有路径中的 {username} 和 {version} 占位符会在运行时替换为实际值。
+所有路径中的 {version} 占位符会在运行时替换为实际值。
 """
 
 import enum
+import functools
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List
 
 
@@ -34,10 +35,6 @@ class CleanupItem:
     category: Category
     safety: SafetyLevel
     note: str = ""
-    # 如果为 True，表示这是一个文件夹整体可删；否则只删内部临时文件
-    delete_folder_entirely: bool = True
-    # 需要排除的文件扩展名（如不想删 .docx）
-    exclude_extensions: List[str] = field(default_factory=list)
 
 
 # =========================================================================
@@ -164,8 +161,9 @@ def resolve_path(template: str, version: str = "") -> str:
     return path
 
 
+@functools.cache
 def detect_wps_version() -> str:
-    """尝试检测已安装的 WPS 版本号。
+    """检测已安装的 WPS 版本号（结果缓存，多次调用不重复 I/O）。
 
     通过扫描 %LocalAppData%/Kingsoft/WPS Office 下的目录来找出版本号。
     """
@@ -175,7 +173,7 @@ def detect_wps_version() -> str:
         "WPS Office",
     )
     if not os.path.isdir(base):
-        return "11.2.2.12345"  # 默认版本号
+        return "11.2.2.12345"
 
     for entry in os.listdir(base):
         entry_path = os.path.join(base, entry)

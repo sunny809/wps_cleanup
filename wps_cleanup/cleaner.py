@@ -6,6 +6,8 @@ import sys
 from dataclasses import dataclass, field
 from typing import Callable, List, Optional
 
+from .utils import check_wps_running
+
 
 @dataclass
 class CleanResult:
@@ -71,7 +73,6 @@ def clean_item(
     category: str = "",
     safety: str = "",
     use_recycle_bin: bool = True,
-    progress_callback: Optional[Callable[[str], None]] = None,
 ) -> CleanResult:
     """清理单个路径，记录被删文件明细。
 
@@ -81,10 +82,9 @@ def clean_item(
         category: 类别名称。
         safety: 安全等级。
         use_recycle_bin: 是否移入回收站（否则永久删除）。
-        progress_callback: 进度回调，接收状态字符串。
 
     Returns:
-        CleanResult 对象，包含 deleted_file_paths 明细。
+        CleanResult 对象，包含 deleted_file_paths 明细（仅记录实际删除的文件）。
     """
     result = CleanResult(
         name=item_name,
@@ -100,20 +100,16 @@ def clean_item(
         result.success = True
         return result
 
-    # 先收集所有文件路径（用于报告）
-    file_paths = _collect_file_paths(resolved_path)
+    # 先收集所有文件路径（用于报告和统计）
+    all_file_paths = _collect_file_paths(resolved_path)
     total_size = 0
-    for fp in file_paths:
+    for fp in all_file_paths:
         if os.path.isfile(fp) and not fp.startswith("…"):
             try:
                 total_size += os.path.getsize(fp)
             except (OSError, PermissionError):
                 continue
-    file_count = len([p for p in file_paths if not p.startswith("…")])
-
-    if progress_callback:
-        from .utils import format_size
-        progress_callback(f"正在清理 {item_name} ({file_count} 个文件, {format_size(total_size)})...")
+    file_count = len([p for p in all_file_paths if not p.startswith("…")])
 
     # 执行删除
     try:
@@ -124,17 +120,17 @@ def clean_item(
                 result.success = True
                 result.deleted_files = file_count
                 result.deleted_size = total_size
-                result.deleted_file_paths = file_paths
+                result.deleted_file_paths = all_file_paths
                 return result
             # fall through to manual delete
 
-        # 逐个删除（永删模式）
-        deleted_paths = []
-        # 如果是目录，从最深层的文件开始删
+        # 逐个删除（永删模式），只记录实际删掉的文件
+        deleted_paths: List[str] = []
         if os.path.isfile(resolved_path):
             if _delete_path(resolved_path):
                 deleted_paths = [resolved_path]
         else:
+            # 从最深层的文件开始删
             for dirpath, dirnames, filenames in os.walk(resolved_path, topdown=False):
                 for f in filenames:
                     fp = os.path.join(dirpath, f)
@@ -151,15 +147,19 @@ def clean_item(
             except OSError:
                 pass
 
+        # 仅统计实际删除的文件（与 deleted_paths 一致）
         result.success = True
-        result.deleted_files = file_count
+        result.deleted_files = len(deleted_paths)
         result.deleted_size = total_size
-        result.deleted_file_paths = file_paths
+        result.deleted_file_paths = deleted_paths
 
     except (OSError, PermissionError) as e:
         result.error = f"删除失败: {e}"
 
     return result
+
+
+WPS_BLOCKED_SENTINEL = "WPS_BLOCKED"
 
 
 def clean_selected(
@@ -174,18 +174,31 @@ def clean_selected(
         items_to_clean: scanner 返回的结果 dict 列表。
         use_recycle_bin: 是否使用回收站。
         skip_if_wps_running: WPS 运行时跳过（避免文件占用）。
-        progress_callback: 进度回调。
+        progress_callback: 进度回调，每个 item 只会回调一次。
 
     Returns:
-        清理结果列表，每一项包含 deleted_file_paths 明细。
+        清理结果列表。若因 WPS 正在运行而跳过，则列表中包含一个标记为
+        success=False, error=WPS_BLOCKED_SENTINEL 的占位结果。
     """
     if skip_if_wps_running:
-        running = _check_wps_running()
+        running = check_wps_running()
         if running:
+            procs = ", ".join(running)
             if progress_callback:
-                procs = ", ".join(running)
                 progress_callback(f"⚠️ WPS 进程正在运行 ({procs})，请先关闭 WPS 再清理")
-            return []
+            # 返回一个占位结果，让调用方能区分"被 WPS 拦截"和"空清理"
+            return [
+                CleanResult(
+                    name="",
+                    resolved_path="",
+                    success=False,
+                    deleted_files=0,
+                    deleted_size=0,
+                    error=WPS_BLOCKED_SENTINEL,
+                    category="",
+                    safety="",
+                )
+            ]
 
     results = []
     for i, item_data in enumerate(items_to_clean):
@@ -199,7 +212,6 @@ def clean_selected(
             category=item.category.value,
             safety=item.safety.value,
             use_recycle_bin=use_recycle_bin,
-            progress_callback=progress_callback,
         )
         results.append(result)
 
@@ -209,25 +221,3 @@ def clean_selected(
             progress_callback(f"[{done}/{total}] 完成: {item.name}")
 
     return results
-
-
-def _check_wps_running() -> List[str]:
-    """检查 WPS 进程（内部函数，避免跨模块依赖）。"""
-    import subprocess
-    wps_names = [
-        "wps.exe", "wpsconfig.exe", "wpsupdate.exe",
-        "wpsoffice.exe", "et.exe", "wpp.exe",
-        "wpscenter.exe", "wpsnotify.exe",
-    ]
-    running = []
-    try:
-        output = subprocess.check_output(
-            "tasklist /FO CSV /NH", shell=True, text=True
-        )
-        for line in output.splitlines():
-            parts = line.strip().strip('"').split('","')
-            if parts and parts[0].lower() in wps_names:
-                running.append(parts[0])
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
-    return running

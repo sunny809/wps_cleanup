@@ -27,28 +27,36 @@ def check_wps_running() -> List[str]:
             "tasklist /FO CSV /NH", shell=True, text=True
         )
         for line in output.splitlines():
-            parts = line.strip().strip('"').split('","')
-            if parts:
-                name = parts[0].lower()
-                if name in wps_process_names:
-                    if name not in running:
-                        running.append(name)
+            line = line.strip()
+            if not line:
+                continue
+            # tasklist CSV 格式: "Name","PID","Session","Session#","Mem Usage"
+            # 提取第一个引号字段作为进程名
+            if line.startswith('"'):
+                end = line.find('"', 1)
+                if end > 0:
+                    name = line[1:end].lower()
+                    if name in wps_process_names:
+                        if name not in running:
+                            running.append(name)
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
     return running
 
 
 def format_size(size_bytes: int) -> str:
-    """将字节数转换为人类可读的格式。"""
+    """将字节数转换为人类可读的格式。使用整数除法避免 float 溢出。"""
     if size_bytes == 0:
         return "0 B"
     units = ["B", "KB", "MB", "GB", "TB"]
     i = 0
-    size = float(size_bytes)
+    size = size_bytes
     while size >= 1024 and i < len(units) - 1:
-        size /= 1024
+        size //= 1024
         i += 1
-    return f"{size:.2f} {units[i]}"
+    # 用指数计算最后的浮点值，避免中间 float 溢出
+    size_f = size_bytes / (1024 ** i)
+    return f"{size_f:.2f} {units[i]}"
 
 
 def get_user_profile() -> str:

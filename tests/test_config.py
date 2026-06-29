@@ -59,6 +59,11 @@ class TestResolvePath:
 class TestDetectWpsVersion:
     """WPS 版本检测测试。"""
 
+    @pytest.fixture(autouse=True)
+    def _clear_cache(self):
+        """每次测试前清除 functools.cache，避免 mock 被缓存污染。"""
+        detect_wps_version.cache_clear()
+
     def _mock_isdir_for_detect(self, base_path: str):
         """创建 isdir mock：让 base 路径和含版本数字的路径返回 True。"""
         def _isdir(path: str) -> bool:

@@ -10,9 +10,9 @@
 
 import json
 import os
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from .cleaner import CleanResult
 from .utils import format_size
@@ -192,6 +192,37 @@ def report_to_json(report: CleanReport) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2)
 
 
+def _get_documents_dir() -> str:
+    """获取用户的「文档」目录，兼容中英文 Windows。"""
+    import sys as _sys
+    if _sys.platform == "win32":
+        try:
+            import ctypes
+            from ctypes import wintypes
+            # FOLDERID_Documents = {FDD39AD0-066F-46EF-AD0D-EF7386ADDF13}
+            GUID = ctypes.create_unicode_buffer(64)
+            guid_str = "{FDD39AD0-066F-46EF-AD0D-EF7386ADDF13}"
+            ctypes.windll.ole32.CLSIDFromString(guid_str, GUID)
+            buf = ctypes.c_wchar_p()
+            # SHGetKnownFolderPath(REFKNOWNFOLDERID, DWORD, HANDLE, PWSTR*)
+            ctypes.windll.shell32.SHGetKnownFolderPath(
+                ctypes.byref(GUID), 0, None, ctypes.byref(buf)
+            )
+            result = buf.value
+            ctypes.windll.ole32.CoTaskMemFree(buf)
+            if result:
+                return result
+        except Exception:
+            pass
+    # fallback：尝试 "Documents" 和 "文档"
+    user = os.environ.get("USERPROFILE", os.path.expanduser("~"))
+    for name in ("Documents", "文档"):
+        p = os.path.join(user, name)
+        if os.path.isdir(p):
+            return p
+    return os.path.join(user, "Documents")  # last resort
+
+
 def save_report(
     report: CleanReport,
     directory: Optional[str] = None,
@@ -199,10 +230,8 @@ def save_report(
 ) -> str:
     """将报告保存到文件，返回文件路径。"""
     if directory is None:
-        # 默认保存到用户文档目录
         directory = os.path.join(
-            os.environ.get("USERPROFILE", os.path.expanduser("~")),
-            "Documents",
+            _get_documents_dir(),
             "WPSCleanup",
         )
     os.makedirs(directory, exist_ok=True)

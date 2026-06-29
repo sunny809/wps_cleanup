@@ -7,14 +7,12 @@
   - 保存报告到文件
 """
 
-import os
-import threading
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from typing import List
 
 from .cleaner import CleanResult
-from .report import build_report, report_to_text, report_to_json, save_report, CleanReport
+from .report import build_report, report_to_text, report_to_json
 from .utils import format_size
 
 

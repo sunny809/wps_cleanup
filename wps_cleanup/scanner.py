@@ -1,12 +1,12 @@
 """扫描 WPS 缓存/备份目录，统计文件数量和大小。"""
 
 import os
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from .config import CLEANUP_ITEMS, CleanupItem, resolve_path
 
 
-def scan_item(item: CleanupItem, version: str = "") -> Optional[dict]:
+def scan_item(item: CleanupItem, version: str = "") -> dict:
     """扫描单个可清理项，返回其状态信息。
 
     Returns:

@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "wps-cleanup"
+version = "1.0.0"
+description = "WPS Office 磁盘缓存/备份清理工具"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "wps-cleanup contributors"},
+]
+
+[project.scripts]
+wps-cleanup = "main:main"
+
+[tool.setuptools.packages.find]
+include = ["wps_cleanup*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

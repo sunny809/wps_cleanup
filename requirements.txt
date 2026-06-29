@@ -1,0 +1,3 @@
+# WPS 磁盘清理工具
+# 无外部依赖，仅使用 Python 标准库 (tkinter, os, sys, threading, ctypes 等)
+# Python >= 3.8

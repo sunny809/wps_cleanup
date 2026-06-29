@@ -44,13 +44,17 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller
+          pip install pyinstaller ruff
 
-      # 4. 生成应用图标
+      # 4. ruff 代码检查（lint 不过则构建不通过）
+      - name: Lint with ruff
+        run: ruff check --output-format=github
+
+      # 5. 生成应用图标
       - name: Generate app icon
         run: python scripts/generate_icon.py
 
-      # 5. PyInstaller 打包为单文件 exe
+      # 6. PyInstaller 打包为单文件 exe
       - name: Build with PyInstaller
         run: |
           pyinstaller `
@@ -63,7 +67,7 @@ jobs:
             --clean `
             main.py
 
-      # 6. 创建便携版 zip
+      # 7. 创建便携版 zip
       - name: Package portable
         run: |
           New-Item -ItemType Directory -Force -Path dist/portable
@@ -71,7 +75,7 @@ jobs:
           Copy-Item README.md dist/portable/
           Compress-Archive -Path dist/portable/* -DestinationPath dist/WPS-Cleanup-Portable.zip
 
-      # 7. 上传构建产物
+      # 8. 上传构建产物
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:

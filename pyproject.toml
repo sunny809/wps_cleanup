@@ -22,3 +22,36 @@ include = ["wps_cleanup*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.ruff]
+# 目标 Python 版本
+target-version = "py38"
+
+# 要检查的目录
+include = ["wps_cleanup", "tests", "scripts", "main.py"]
+line-length = 120
+
+[tool.ruff.lint]
+# 选用的规则集：
+#   E/W — pycodestyle 错误/警告
+#   F   — pyflakes 逻辑错误
+#   I   — isort 导入顺序
+#   N   — pep8-naming 命名规范
+#   UP  — pyupgrade 现代写法升级
+#   B   — bugbear 潜在 bug
+#   SIM — flake8-simplify 简化代码
+select = ["E", "W", "F", "I", "N", "UP", "B", "SIM"]
+
+# 不检查的规则
+ignore = [
+    "E501",     # 行长 120 内即可
+    "N802",     # 允许函数名含大写（如 WPS_BLOCKED_SENTINEL）
+    "N806",     # 允许非小写变量名（如 PNG_PATH）
+    "B904",     # 允许 raise ... from None
+    "SIM115",   # 允许 open() 不加 context manager
+]
+
+[tool.ruff.lint.per-file-ignores]
+# 测试文件允许更多自由度
+"tests/*" = ["N802", "N803", "N806", "UP006"]
+"scripts/*" = ["INP001"]
